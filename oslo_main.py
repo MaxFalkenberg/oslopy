@@ -97,25 +97,68 @@ class Oslo:
         tm = 0 #microscopic counter (not time!)
         sm = 0 #avalance index
         dm = 0 #drop index
-        check = [0]
         continue_topple = True #has the boundary site toppled at last microtime
 
         while continue_topple:
+            check = self.index_choice[tm][self.topple_check[tm]]
             z_d = z[check] - z_c[check]
             z_t = (z_d + np.absolute(z_d)).astype('bool')
             sm_temp = np.sum(z_t)
-            z_c[z_t] = np.random.randint(1,2,sm_temp)
+            z_c[check[z_t]] = np.random.randint(1,2,sm_temp)
             continue_topple = bool(sm_temp)
             sm += sm_temp
+            delta = check[z_t]
             if continue_topple:
-                check = self.update_check(self,z_t,tm)
-                z = self.update_z(self,z,z_t,tm)
+                z = self.update_z(z,z_t,delta)
+                if tm == self.__L - 1:
+                    self.update_check(z_t,tm,delta,bt=True)
+                    tm -= 1
+                    if delta[-1] == self.__L-1:
+                        dm += 1
+                else:
+                    self.update_check(z_t,tm,delta,bt=False)
+                    tm += 1
 
         self.s.append(sm)
         self.d.append(dm)
 
-    def update_check(self,z_t,tm):
+    def update_check(self,z_t,tm,delta,bt = False): #check each state individually
         """Docstring"""
+        if delta[0] == 0:
+            j = 1
+        else:
+            j = None
+        if delta[-1] == tm:
+            i = -1
+        else:
+            i = None
+        if bt:
+            if tm%2: #Need to include forward check (only back atm)
+                self.topple_check[tm-1][self.topple_check[tm]] = z_t
+                self.topple_check[tm-1][1:][self.topple_check[tm][:-1]] += z_t[:i]
+            else:
+                self.topple_check[tm-1][self.topple_check[tm][:-1]] = z_t[:i]
+                self.topple_check[tm-1][self.topple_check[tm][1:]] += z_t[j:]
+            self.topple_check[tm] *= False
+            self.topple_check[tm][-1] = True
+        else:
+            if tm%2:
+                self.topple_check[tm+1][:-1][self.topple_check[tm]] = z_t
+                self.topple_check[tm+1][1:][self.topple_check[tm]] += z_t
+            else:
+                self.topple_check[tm+1][self.topple_check[tm]] = z_t
+                self.topple_check[tm+1][:-1][self.topple_check[tm][1:]] += z_t[j:i]
+            self.topple_check[tm] *= False
 
-    def update_z(self,z,z_t,tm):
+    def update_z(self,z,z_t,delta):
         """Docstring"""
+        z[delta] -= 2
+        if delta[0] == 0:
+            z[delta[1:]-1] += 1
+        else:
+            z[delta-1] += 1
+        if delta[-1] == self.__L-1:
+            z[delta[:-1]+1] += 1
+        else:
+            z[delta+1] += 1
+        return z
