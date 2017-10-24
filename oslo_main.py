@@ -99,7 +99,8 @@ class Oslo:
         dm = 0 #drop index
         continue_topple = True #has the boundary site toppled at last microtime
 
-        while continue_topple:
+        while continue_topple: #Need to check this with the boundary
+            print(z,sm)
             check = self.index_choice[tm][self.topple_check[tm]]
             z_d = z[check] - z_c[check]
             z_t = (z_d + np.absolute(z_d)).astype('bool')
@@ -111,43 +112,47 @@ class Oslo:
             if continue_topple:
                 z = self.update_z(z,z_t,delta)
                 if tm == self.__L - 1:
-                    self.update_check(z_t,tm,delta,bt=True)
+                    self.update_check(z_t,tm,check,bt=True)
                     tm -= 1
                     if delta[-1] == self.__L-1:
                         dm += 1
+                        self.__z[-1] += 1
                 else:
-                    self.update_check(z_t,tm,delta,bt=False)
+                    self.update_check(z_t,tm,check,bt=False)
                     tm += 1
 
         self.s.append(sm)
         self.d.append(dm)
 
-    def update_check(self,z_t,tm,delta,bt = False): #check each state individually
+    def update_check(self,z_t,tm,check,bt = False): #check each state individually
         """Docstring"""
-        if delta[0] == 0:
+        #print(tm)
+        if check[0] == 0:
             j = 1
         else:
             j = None
-        if delta[-1] == tm:
+        if check[-1] == tm:
             i = -1
         else:
             i = None
         if bt:
             if tm%2: #Need to include forward check (only back atm)
-                self.topple_check[tm-1][self.topple_check[tm]] = z_t
-                self.topple_check[tm-1][1:][self.topple_check[tm][:-1]] += z_t[:i]
+                self.topple_check[tm-1][self.topple_check[tm]] = z_t #check
+                self.topple_check[tm-1][1:][self.topple_check[tm][:-1]] += z_t[:i] #check
             else:
-                self.topple_check[tm-1][self.topple_check[tm][:-1]] = z_t[:i]
-                self.topple_check[tm-1][self.topple_check[tm][1:]] += z_t[j:]
+                self.topple_check[tm-1][self.topple_check[tm][:-1]] = z_t[:i] #check
+                self.topple_check[tm-1][self.topple_check[tm][1:]] += z_t[j:] #check
             self.topple_check[tm] *= False
             self.topple_check[tm][-1] = True
         else:
             if tm%2:
-                self.topple_check[tm+1][:-1][self.topple_check[tm]] = z_t
-                self.topple_check[tm+1][1:][self.topple_check[tm]] += z_t
+                self.topple_check[tm+1][:-1][self.topple_check[tm]] = z_t #check
+                self.topple_check[tm+1][1:][self.topple_check[tm]] += z_t #check
             else:
+                #print(self.topple_check[tm+1],self.topple_check[tm],z_t,j)
+                #print(self.topple_check[tm+1][:-1][self.topple_check[tm][1:]])
                 self.topple_check[tm+1][self.topple_check[tm]] = z_t
-                self.topple_check[tm+1][:-1][self.topple_check[tm][1:]] += z_t[j:i]
+                self.topple_check[tm+1][:-1][self.topple_check[tm][1:]] += z_t[j:]
             self.topple_check[tm] *= False
 
     def update_z(self,z,z_t,delta):
