@@ -37,16 +37,27 @@ class Oslo:
             raise ValueError('Custom array contains values other\
                                 than [0,1,2,3]')
 
+
+
+    def newslope(self):
+        if np.random.random() > 0.5:
+            return 1
+        else:
+            return 2
+
+    @profile
     def micro_run(self):
         """Docstring"""
         tm = 0
         sm = 0
         dm = 0
+        # print('break')
         while len(self.point[tm%2]) != 0:
+            # print(self.point[tm%2],self.point,tm)
             for i in self.point[tm%2]:
-                if self.__z[i] - self.__z_c[i] > 0:
+                if self.__z[i] > self.__z_c[i]:
                     self.__z[i] -= 2
-                    self.__z_c[i] = np.random.randint(1,3)
+                    self.__z_c[i] = self.newslope()
                     sm += 1
                     if i == 0:
                         self.point[(tm+1)%2].append(i+1)
@@ -67,6 +78,7 @@ class Oslo:
         self.s.append(sm)
         self.d.append(dm)
 
+    @profile
     def run(self,N):
         """Docstring"""
         index = np.arange(self.__L)
@@ -74,39 +86,14 @@ class Oslo:
         z_t = ((self.__z - self.__z_c) > 0)
         self.__z[0] -= 1
         self.point[0] = list(index[z_t])
-        for i in range(N):
+        checks = 0
+        for j in range(N):
             if 0 not in self.point[0]:
                 self.point[0].append(0)
             self.__z[0] += 1
             self.__t += 1
             self.micro_run()
-            # tm = 0
-            # sm = 0
-            # dm = 0
-            # while len(self.point[tm%2]) != 0:
-            #     for i in self.point[tm%2]:
-            #         if self.__z[i] - self.__z_c[i] > 0:
-            #             self.__z[i] -= 2
-            #             self.__z_c[i] = np.random.randint(1,2)
-            #             sm += 1
-            #             if i == 0:
-            #                 self.point[(tm+1)%2].append(i+1)
-            #                 self.__z[i+1] += 1
-            #             elif i == self.__L - 1:
-            #                 self.point[(tm+1)%2].append(i-1)
-            #                 self.point[(tm+1)%2].append(i)
-            #                 self.__z[i-1] += 1
-            #                 self.__z[i] += 1
-            #                 dm += 1
-            #             else:
-            #                 self.point[(tm+1)%2].append(i+1)
-            #                 self.__z[i+1] += 1
-            #                 self.point[(tm+1)%2].append(i-1)
-            #                 self.__z[i-1] += 1
-            #     self.point[tm%2] = []
-            #     tm += 1
-            # self.s.append(sm)
-            # self.d.append(dm)
+            # print(self.__z)
 
     def info(self,single = False):
         """Returns key information about current state of the ricepile.
@@ -136,3 +123,6 @@ class Oslo:
             return data
         else:
             return data[single]
+
+a = Oslo(32)
+a.run(100000)
