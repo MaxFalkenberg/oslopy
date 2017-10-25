@@ -88,7 +88,12 @@ class Oslo:
         else:
             return data[single]
 
-    def micro_run(self,z,z_c):
+    def topple(self,tm):
+        check = self.index_choice[tm][self.topple_check[tm]]
+        z_d = self.__z[check] - self.__z_c[check]
+        return (z_d + np.absolute(z_d)).astype('bool'),check
+
+    def micro_run(self):
         """Internal function.
             Executes all topplings of the ricepile at the macroscopic time
             the function is called. Records total number of toppings (avalance
@@ -97,28 +102,33 @@ class Oslo:
         tm = 0 #microscopic counter (not time!)
         sm = 0 #avalance index
         dm = 0 #drop index
-        continue_topple = True #has the boundary site toppled at last microtime
+        bt_check = True
 
-        while continue_topple: #Need to check this with the boundary
-            print(z,sm)
-            check = self.index_choice[tm][self.topple_check[tm]]
-            z_d = z[check] - z_c[check]
-            z_t = (z_d + np.absolute(z_d)).astype('bool')
-            sm_temp = np.sum(z_t)
-            z_c[check[z_t]] = np.random.randint(1,2,sm_temp)
-            continue_topple = bool(sm_temp)
-            sm += sm_temp
-            delta = check[z_t]
-            if continue_topple:
-                z = self.update_z(z,z_t,delta)
-                if tm == self.__L - 1:
-                    self.update_check(z_t,tm,check,bt=True)
-                    tm -= 1
-                    if delta[-1] == self.__L-1:
-                        dm += 1
-                        self.__z[-1] += 1
-                else:
-                    self.update_check(z_t,tm,check,bt=False)
+        while bt_check: #has the boundary site toppled at last microtime
+            continue_topple = True
+            bt_check = False
+            while continue_topple: #Need to check this with the boundary
+                #print(z,sm)
+                z_t,check = self.topple(tm)
+                sm_temp = np.sum(z_t)
+                delta = check[z_t]
+                self.__z_c[delta] = np.random.randint(1,2,sm_temp)
+                continue_topple = bool(sm_temp)
+                sm += sm_temp
+                if continue_topple:
+                    self.__z = self.update_z(self.__z,self.__z_c,delta)
+
+                    if tm == self.__L - 1:
+                        self.update_check(z_t,tm,check,bt=True)
+                        tm -= 1
+                        if delta[-1] == self.__L-1:
+                            dm += 1
+                            self.__z[-1] += 1
+                            bt_check = True
+                    else:
+                        self.update_check(z_t,tm,check,bt=False)
+                        tm += 1
+                elif bt_check:
                     tm += 1
 
         self.s.append(sm)
@@ -167,3 +177,13 @@ class Oslo:
         else:
             z[delta+1] += 1
         return z
+
+    def run(self,t):
+        """Docstring"""
+        for i in range(t):
+            if i % 100 == 0:
+                print i
+            self.topple_check[0][0] = True
+            self.__z[0] += 1
+            self.micro_run()
+            self.__t += 1
