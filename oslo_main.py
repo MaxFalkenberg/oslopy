@@ -15,31 +15,49 @@ class Oslo:
         self.__L = L
         self.__t = 0
         self.__z = np.zeros(L,dtype='int')
-        self.__z_c = np.random.randint(1,3,L)
+        self.__z_c = np.random.randint(1,2,L)
         self.s = []
         self.d = []
-        self.index_choice, self.topple_check, self.topple_dependencies = (
-                self.index_dep_gen(L))
+        self.point = ([],[])
 
-    def index_dep_gen(self, L):
-        """Internal method for generating list of indices for possible toppling
-            locations and toppling dependencies of each site."""
-        index_choice = []
-        topple_check = []
-        dependencies = []
-        for i in range(L):
-            index_temp = np.arange(i%2,i+1,2)
-            topple_check_temp = np.zeros_like(index_temp,dtype='bool')
-            index_choice.append(index_temp)
-            topple_check.append(topple_check_temp)
-            if i == 0:
-                dependencies.append([1])
-            elif i == L-1:
-                dependencies.append([L-2])
-            else:
-                dependencies.append([i-1,i+1])
+    def micro_run(self):
+        """Docstring"""
+        tm = 0
+        sm = 0
+        dm = 0
+        for i in self.point[tm%2]:
+            if self.__z[i] - self.__z_c[i] > 0:
+                self.__z[i] -= 2
+                self.__z_c[i] = np.random.randint(1,2)
+                sm += 1
+                if i == 0:
+                    self.point[(tm+1)%2].append(i+1)
+                    self.__z[i+1] += 1
+                elif i == self.__L - 1:
+                    self.point[(tm+1)%2].append(i-1)
+                    self.point[(tm+1)%2].append(i)
+                    self.__z[i-1] += 1
+                    self.__z[i] += 2
+                    dm += 1
+                else:
+                    self.point[(tm+1)%2].append(i+1)
+                    self.__z[i+1] += 1
+                    self.point[(tm+1)%2].append(i-1)
+                    self.__z[i-1] += 1
+            self.point[tm%2] = []
+            tm += 1
+            self.s.append(sm)
+            self.d.append(dm)
 
-        return index_choice, topple_check, dependencies
+    def run(self,N):
+        """Docstring"""
+        t = 0
+        index = np.arange(self.__L)
+        z_t = ((self.__z - self.__z_c) > 0)
+        self.point[0] = index[z_t]
+        for i in range(N):
+            t += 1
+            self.micro_run()
 
     def info(self,single = False):
         """Returns key information about current state of the ricepile.
