@@ -5,20 +5,48 @@
 
 
 import numpy as np
+import pickle
+import os
+import binascii
 
 class Oslo:
     """ Docstring """
 
-    def __init__(self, L):
+    def __init__(self, L, load = False):
         if type(L) != int:
             raise ValueError("Grid size, L, must be integer type.")
-        self.__L = L
-        self.__t = 0
-        self.__z = np.zeros(L,dtype='int')
-        self.__z_c = np.random.randint(1,3,L)
-        self.s = []
-        self.d = []
-        self.point = [[],[]]
+        if load != False:
+            with open (load + '/meta.pickle', 'rb') as fp:
+                self.__L,self.__t,self.point = pickle.load(fp)
+            self.__z = np.load(load + '/z.npy')
+            self.__z_c = np.load(load + '/z_c.npy')
+            self.s = list(np.load(load + '/s.npy'))
+            self.d = list(np.load(load + '/d.npy'))
+        else:
+            self.__L = L
+            self.__t = 0
+            self.__z = np.zeros(L,dtype='int')
+            self.__z_c = np.random.randint(1,3,L)
+            self.s = []
+            self.d = []
+            self.point = [[],[]]
+
+    def save(self, foldername = None):
+
+        files = (self.__L,self.__t,self.point)
+        if foldername == None:
+            folder = str('filedump_L' + str(self.__L) + '_t' + str(self.__t) +
+                                        '_' + binascii.b2a_hex(os.urandom(6)))
+        else:
+            folder = foldername
+        os.makedirs(folder)
+        with open(folder + '/meta.pickle', 'wb') as f:
+            pickle.dump(files, f)
+        np.save(folder + '/z',self.__z)
+        np.save(folder + '/z_c',self.__z_c)
+        np.save(folder + '/s',self.s)
+        np.save(folder + '/d',self.d)
+
 
     def custom_z(self,X):
         """Input custom pile configuration.
@@ -45,7 +73,7 @@ class Oslo:
         else:
             return 2
 
-    @profile
+    # @profile
     def micro_run(self):
         """Docstring"""
         tm = 0
@@ -78,7 +106,7 @@ class Oslo:
         self.s.append(sm)
         self.d.append(dm)
 
-    @profile
+    # @profile
     def run(self,N):
         """Docstring"""
         index = np.arange(self.__L)
@@ -124,5 +152,5 @@ class Oslo:
         else:
             return data[single]
 
-a = Oslo(32)
-a.run(100000)
+# a = Oslo(32)
+# a.run(100000)
