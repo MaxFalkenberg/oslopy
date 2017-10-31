@@ -8,11 +8,13 @@ import numpy as np
 import pickle
 import os
 import binascii
+import copy
 
 class Oslo:
     """ Docstring """
 
-    def __init__(self, L, load = False):
+    def __init__(self, L,p = 0.5, load = False):
+        self.p = p
         if type(L) != int:
             raise ValueError("Grid size, L, must be integer type.")
         if load != False:
@@ -30,10 +32,11 @@ class Oslo:
             self.s = []
             self.d = []
             self.point = [[],[]]
+            self.datadump = []
 
 
     def newslope(self):
-        if np.random.random() > 0.25:
+        if np.random.random() > self.p:
             return 1
         else:
             return 2
@@ -48,7 +51,7 @@ class Oslo:
         # print('break')
         while topple:
             topple = False
-            if self.__z[0] > (2 + self.__z_c[0][-2] - self.__z_c[0][-1]):
+            if self.__z[0] > (2 * self.__z_c[0][-2] - self.__z_c[0][-1] + 1):
                 self.__z_c[1].append(self.__z_c[0][-1])
                 del self.__z_c[0][-1]
                 self.__z[0] -= 2
@@ -56,7 +59,7 @@ class Oslo:
                 sm+=1
                 topple = True
             for i in range(1,self.__L -1):
-                if self.__z[i] > (2 + self.__z_c[i][-2] - self.__z_c[i][-1]):
+                if self.__z[i] > (2 * self.__z_c[i][-2] - self.__z_c[i][-1] + 1):
                     self.__z_c[i+1].append(self.__z_c[i][-1])
                     del self.__z_c[i][-1]
                     self.__z[i] -= 2
@@ -64,7 +67,7 @@ class Oslo:
                     self.__z[i+1] += 1
                     sm+=1
                     topple = True
-            if self.__z[self.__L -1] > (2 + self.__z_c[self.__L -1][-2] - self.__z_c[self.__L -1][-1]):
+            if self.__z[self.__L -1] > (2 * self.__z_c[self.__L -1][-2] - self.__z_c[self.__L -1][-1] + 1):
                 #self.__z_c[self.__L].append(self.__z_c[self.__L -1][-1])
                 del self.__z_c[self.__L -1][-1]
                 self.__z[self.__L -1] -= 1
@@ -85,12 +88,19 @@ class Oslo:
             self.__z[0] += 1
             self.__z_c[0].append(self.newslope())
             self.micro_run()
+            self.datadump.append(copy.deepcopy(self.__z_c))
 
-    def plot_pile(self):
-        grid = np.zeros((2*self.__L +5,self.__L),dtype ='int')
+    def plot_pile(self,z_c):
+        grid = np.zeros((3*self.__L +5,self.__L),dtype ='int')
         for i in range(self.__L):
-            grid[:,i][:len(self.__z_c[i])] = self.__z_c[i]
+            grid[:,i][:len(z_c[i])] = z_c[i]
         return grid[::-1]
+
+    def animate(self):
+        grid = np.zeros((len(self.datadump),3*self.__L +5,self.__L),dtype ='int')
+        for i in range(len(self.datadump)):
+            grid[i] = self.plot_pile(self.datadump[i])
+        return grid
 
 
 
