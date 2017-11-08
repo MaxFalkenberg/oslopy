@@ -42,7 +42,7 @@ class Oslo:
             return 2
 
     # @profile
-    def micro_run(self):
+    def micro_run(self,mode= 'build'):
         """Docstring"""
         tm = 0
         sm = 0
@@ -59,6 +59,7 @@ class Oslo:
                 sm+=1
                 topple = True
             for i in range(1,self.__L -1):
+                # print(i)
                 if self.__z[i] > (2 * self.__z_c[i][-2] - self.__z_c[i][-1] + 1):
                     self.__z_c[i+1].append(self.__z_c[i][-1])
                     del self.__z_c[i][-1]
@@ -67,14 +68,15 @@ class Oslo:
                     self.__z[i+1] += 1
                     sm+=1
                     topple = True
-            if self.__z[self.__L -1] > (2 * self.__z_c[self.__L -1][-2] - self.__z_c[self.__L -1][-1] + 1):
-                #self.__z_c[self.__L].append(self.__z_c[self.__L -1][-1])
-                del self.__z_c[self.__L -1][-1]
-                self.__z[self.__L -1] -= 1
-                self.__z[self.__L -2] += 1
-                sm+=1
-                dm+=1
-                topple = True
+            if mode == 'build':
+                if self.__z[self.__L -1] > (2 * self.__z_c[self.__L -1][-2] - self.__z_c[self.__L -1][-1] + 1):
+                    #self.__z_c[self.__L].append(self.__z_c[self.__L -1][-1])
+                    del self.__z_c[self.__L -1][-1]
+                    self.__z[self.__L -1] -= 1
+                    self.__z[self.__L -2] += 1
+                    sm+=1
+                    dm+=1
+                    topple = True
 
             tm += 1
         self.s.append(sm)
@@ -89,6 +91,29 @@ class Oslo:
             self.__z_c[0].append(self.newslope())
             self.micro_run()
             self.datadump.append(copy.deepcopy(self.__z_c))
+
+    def dig(self):
+        self.__z_c = []
+        self.remove = []
+        for i in range(self.__L):
+            self.__z_c.append([self.newslope() for j in range(self.__L)])
+        # for i in range(self.__L/2):
+        #     self.__z_c.append([3,3])
+        # self.__z[(self.__L/2)-1] = 3 * self.__L
+        self.micro_run(mode = 'dig')
+        while len(self.__z_c[-1]) > 50:
+        # for j in range(10):
+            self.remove.append(self.__z_c[-5:][-5:] + self.__z_c[-4][-5:] + self.__z_c[-3][-5:] + self.__z_c[-2][-5:] + self.__z_c[-1][-5:])
+            del self.__z_c[-1][-5:]
+            del self.__z_c[-2][-5:]
+            del self.__z_c[-3][-5:]
+            del self.__z_c[-4][-5:]
+            del self.__z_c[-5][-5:]
+            self.__z[-6] += 5
+            self.micro_run(mode = 'dig')
+            self.datadump.append(copy.deepcopy(self.__z_c))
+        return self.__z_c
+
 
     def plot_pile(self,z_c):
         grid = np.zeros((3*self.__L +5,self.__L),dtype ='int')
