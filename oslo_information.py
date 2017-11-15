@@ -40,7 +40,7 @@ def pile_excess(data, mode = 'outflux', L=None):
     for i in d:
         j += i
         excess.append(j)
-    return np.array(excess)
+    return np.array(excess).astype('float') - np.mean(excess)
 
 def excess_compress(excess):
     """Convert excess data (from function 'pile_excess') into compressed form
@@ -117,12 +117,27 @@ def chain_count(chain):
 
     return prob,count
 
+def prob_chain(chain_count):
+    """Total probability that the pile stays in an excess state for a given
+        number of timesteps.
 
+        Parameters:
 
+            chain_count:        numpy.ndarray, shape(np.max(excess_chain)),
+                                dtype('float')
 
+        Returns:
 
+            chain_prob:         numpy.ndarray, shape(np.max(excess_chain)),
+                                dtype('float')
 
-
+    """
+    prob_chain = []
+    j = 1
+    for i in chain_count:
+        j *= i
+        prob_chain.append(j)
+    return np.array(prob_chain)
 
 
 def block_binary(compress,blocksize):
@@ -152,3 +167,96 @@ def block_binary(compress,blocksize):
     for i in range(len(compress) + 1 - blocksize):
         dec.append(np.sum(compress[i:i+blocksize]*powers))
     return np.array(dec)
+
+def excess_difference(excess,T, single = False):
+    """Docstring
+    """
+    count_bin = []
+    range_bin = []
+
+    if single:
+        dif1 = excess[T:-T] - excess[:-2*T]
+        dif2 = excess[2*T:] - excess[:-2*T]
+        count = np.zeros(np.ptp(dif1) + 1, dtype='float')
+        d_range = np.arange(np.min(dif1),np.max(dif1) + 1)
+        for j in range(len(d_range)):
+            ind = np.argwhere(dif1 == d_range[j])
+            if len(ind) != 0:
+                count[j] = (float(len(np.argwhere(dif2[ind] > dif1[ind])))/
+                                    len(ind))
+            else:
+                count[j] = None
+        count_bin.append(count)
+        range_bin.append(d_range)
+    else:
+        for i in range(1,T+1):
+            dif1 = excess[i:-i] - excess[:-2*i]
+            dif2 = excess[2*i:] - excess[:-2*i]
+            count = np.zeros(np.ptp(dif1) + 1, dtype='float')
+            d_range = np.arange(np.min(dif1),np.max(dif1) + 1)
+            for j in range(len(d_range)):
+                ind = np.argwhere(dif1 == d_range[j])
+                if len(ind) != 0:
+                    count[j] = (float(len(np.argwhere(dif2[ind] > dif1[ind])))/
+                                        len(ind))
+                else:
+                    count[j] = None
+            count_bin.append(count)
+            range_bin.append(d_range)
+    return range_bin,count_bin
+
+
+def deficit(outflux,L,offset = 0):
+    """Docstring
+    """
+    outflux = np.array(outflux)
+    outflux -= 1
+    outflux *= -1
+    N_g = []
+    j = offset
+    for i in outflux:
+        j += i
+        N_g.append(j)
+    N_g = np.array(N_g,dtype = 'float')
+    deficit = 2. - 2.*N_g/(L * (L + 1.))
+    return deficit
+
+def cr_def(deficit,correlate):
+    """Input pile.cor or pile.r as correlate.
+    """
+    correlate = np.array(correlate)
+    deficit = deficit[:-1]
+    correlate = correlate[1:]
+    u = np.unique(deficit)
+
+    dump = []
+    l = []
+
+    for i in u:
+        ind = np.argwhere(deficit == i).flatten()
+        dump.append(np.mean(correlate[ind]))
+        l.append(len(ind))
+
+    l = np.array(l)
+    dump = np.array(dump)
+    return u,dump,l
+
+def Ng(slopes):
+    i = np.arange(1,len(slopes) + 1)
+    return np.sum(slopes * i)
+
+def state_gen(L):
+    N = []
+    x = np.ones(L)
+    for i in x:
+        N.append(Ng(x))
+        i = np.argwhere(x == 1).flatten()
+        x[i[np.random.randint(0,len(i))]] = 2
+    N.append(Ng(x))
+    return np.array(N)
+
+def state_dist(N,L):
+    dump = []
+    for i in range(N):
+        dump.append(state_gen(L))
+    return np.block(dump)

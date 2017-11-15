@@ -9,7 +9,7 @@ import numpy as np
 class Oslo:
     """ Docstring """
 
-    def __init__(self, L):
+    def __init__(self, L,mode = 'n'):
         if type(L) != int:
             raise ValueError("Grid size, L, must be integer type.")
         self.__L = L
@@ -18,7 +18,29 @@ class Oslo:
         self.__z_c = np.random.randint(1,3,L)
         self.s = []
         self.d = []
+        self.cor = []
+        self.r = []
         self.point = [[],[]]
+        if mode == 'r':
+            self.__z += 2
+            Oslo.run(self,1)
+            self.__t = 0
+            self.s = []
+            self.d = []
+            self.cor = []
+            self.r = []
+            self.point = [[],[]]
+            self.d_offset = Oslo.height(self)
+        else:
+            self.d_offset = 0
+
+    def height(self):
+        j = 0
+        h = 0
+        for i in self.__z[::-1]:
+            j += i
+            h += j
+        return h
 
     def custom_z(self,X):
         """Input custom pile configuration.
@@ -45,16 +67,21 @@ class Oslo:
         else:
             return 2
 
-    @profile
     def micro_run(self):
         """Docstring"""
         tm = 0
         sm = 0
         dm = 0
+        cor = False
+        r = 0
         # print('break')
         while len(self.point[tm%2]) != 0:
             # print(self.point[tm%2],self.point,tm)
             for i in self.point[tm%2]:
+                if i == self.__L - 1:
+                    cor = True
+                if i > r:
+                    r = i
                 if self.__z[i] > self.__z_c[i]:
                     self.__z[i] -= 2
                     self.__z_c[i] = self.newslope()
@@ -75,10 +102,11 @@ class Oslo:
                         self.__z[i-1] += 1
             self.point[tm%2] = []
             tm += 1
+        self.cor.append(cor)
+        self.r.append(r)
         self.s.append(sm)
         self.d.append(dm)
 
-    @profile
     def run(self,N):
         """Docstring"""
         index = np.arange(self.__L)
@@ -123,6 +151,3 @@ class Oslo:
             return data
         else:
             return data[single]
-
-a = Oslo(32)
-a.run(100000)
