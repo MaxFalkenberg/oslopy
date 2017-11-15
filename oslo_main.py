@@ -9,17 +9,38 @@ import numpy as np
 class Oslo:
     """ Docstring """
 
-    def __init__(self, L):
+    def __init__(self, L,mode = 'n'):
         if type(L) != int:
             raise ValueError("Grid size, L, must be integer type.")
-        self.__L = L #grid size
-        self.__t = 0 #macroscopic time
-        self.__z = np.zeros(L,dtype='int') #grid of ricepile slopes
-        self.__z_c = np.random.randint(1,2,L) #critical slopes
-        self.s = [] #avalance list
-        self.d = [] #drop list
-        self.index_choice, self.topple_check, self.topple_dependencies = (
-                self.index_dep_gen(L))
+        self.__L = L
+        self.__t = 0
+        self.__z = np.zeros(L,dtype='int')
+        self.__z_c = np.random.randint(1,3,L)
+        self.s = []
+        self.d = []
+        self.cor = []
+        self.r = []
+        self.point = [[],[]]
+        if mode == 'r':
+            self.__z += 2
+            Oslo.run(self,1)
+            self.__t = 0
+            self.s = []
+            self.d = []
+            self.cor = []
+            self.r = []
+            self.point = [[],[]]
+            self.d_offset = Oslo.height(self)
+        else:
+            self.d_offset = 0
+
+    def height(self):
+        j = 0
+        h = 0
+        for i in self.__z[::-1]:
+            j += i
+            h += j
+        return h
 
     def custom_z(self,X):
         """Input custom pile configuration.
@@ -38,26 +59,69 @@ class Oslo:
             raise ValueError('Custom array contains values other\
                                 than [0,1,2,3]')
 
-    def index_dep_gen(self, L):
-        """Internal method for generating list of indices for possible toppling
-            locations and toppling dependencies of each site."""
-        index_choice = []
-        topple_check = []
-        dependencies = []
-        for i in range(L):
-            index_temp = np.arange(i%2,i+1,2)
-            topple_check_temp = np.zeros_like(index_temp,dtype='bool')
-            index_choice.append(index_temp)
-            topple_check.append(topple_check_temp)
-            if i == 0:
-                dependencies.append([0])
-            elif i == L-1:
-                dependencies.append([(L-2)//2])
-            else:
-                dependencies.append([(i-1)//2,(i+1)//2])
-        topple_check[0] = np.array([1],dtype='bool')
 
-        return index_choice, topple_check, dependencies
+
+    def newslope(self):
+        if np.random.random() > 0.5:
+            return 1
+        else:
+            return 2
+
+    def micro_run(self):
+        """Docstring"""
+        tm = 0
+        sm = 0
+        dm = 0
+        cor = False
+        r = 0
+        # print('break')
+        while len(self.point[tm%2]) != 0:
+            # print(self.point[tm%2],self.point,tm)
+            for i in self.point[tm%2]:
+                if i == self.__L - 1:
+                    cor = True
+                if i > r:
+                    r = i
+                if self.__z[i] > self.__z_c[i]:
+                    self.__z[i] -= 2
+                    self.__z_c[i] = self.newslope()
+                    sm += 1
+                    if i == 0:
+                        self.point[(tm+1)%2].append(i+1)
+                        self.__z[i+1] += 1
+                    elif i == self.__L - 1:
+                        self.point[(tm+1)%2].append(i-1)
+                        self.point[(tm+1)%2].append(i)
+                        self.__z[i-1] += 1
+                        self.__z[i] += 1
+                        dm += 1
+                    else:
+                        self.point[(tm+1)%2].append(i+1)
+                        self.__z[i+1] += 1
+                        self.point[(tm+1)%2].append(i-1)
+                        self.__z[i-1] += 1
+            self.point[tm%2] = []
+            tm += 1
+        self.cor.append(cor)
+        self.r.append(r)
+        self.s.append(sm)
+        self.d.append(dm)
+
+    def run(self,N):
+        """Docstring"""
+        index = np.arange(self.__L)
+        self.__z[0] += 1
+        z_t = ((self.__z - self.__z_c) > 0)
+        self.__z[0] -= 1
+        self.point[0] = list(index[z_t])
+        checks = 0
+        for j in range(N):
+            if 0 not in self.point[0]:
+                self.point[0].append(0)
+            self.__z[0] += 1
+            self.__t += 1
+            self.micro_run()
+            # print(self.__z)
 
     def info(self,single = False):
         """Returns key information about current state of the ricepile.
