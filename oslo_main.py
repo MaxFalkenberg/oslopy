@@ -8,6 +8,7 @@ import numpy as np
 import pickle
 import os
 import binascii
+import oslo_information as oi
 
 class Oslo:
     """ Docstring """
@@ -142,6 +143,22 @@ class Oslo:
             self.micro_run()
             # print(self.__z)
 
+    def def_run(self,N):
+        self.d_offset = []
+        for i in range(N):
+            print i
+            z_stack,zc_stack,offset = oi.slope_gen(self.__L)
+            self.d_offset.append(offset)
+            for j in range(self.__L+1):
+                self.__z = z_stack[j]
+                self.__z_c = zc_stack[j]
+                self.point = [[0],[]]
+                self.__z[0] += 1
+                self.__t += 1
+                self.micro_run()
+        self.d_offset = np.block(self.d_offset)
+        self.d_offset_norm = 2. - 2.*self.d_offset/(self.__L * (self.__L + 1.))
+
     def info(self,single = False):
         """Returns key information about current state of the ricepile.
 
@@ -170,6 +187,3 @@ class Oslo:
             return data
         else:
             return data[single]
-
-# a = Oslo(32)
-# a.run(100000)

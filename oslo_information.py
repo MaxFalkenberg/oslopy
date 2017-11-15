@@ -242,10 +242,14 @@ def cr_def(deficit,correlate):
     return u,dump,l
 
 def Ng(slopes):
+    """Docstring
+    """
     i = np.arange(1,len(slopes) + 1)
     return np.sum(slopes * i)
 
 def state_gen(L):
+    """Docstring
+    """
     N = []
     x = np.ones(L)
     for i in x:
@@ -256,7 +260,48 @@ def state_gen(L):
     return np.array(N)
 
 def state_dist(N,L):
+    """Docstring
+    """
     dump = []
     for i in range(N):
         dump.append(state_gen(L))
     return np.block(dump)
+
+def slope_gen(L):
+    """Generate spectrum of slope and critical slope configurations for an
+        approximately uniform distribution of deficit values for a pile of
+        size L.
+    """
+    x = np.ones((L+1,L))
+    zc = np.ones((L+1,L))
+    zc[0] = np.random.randint(1,3,L)
+    N = [Ng(x[0])]
+    for i in range(1,len(x)):
+        x[i] = x[i-1]
+        j = np.argwhere(x[i] == 1).flatten()
+        x[i][j[np.random.randint(0,len(j))]] = 2
+        zc[i] = x[i]
+        k = np.argwhere(zc[i] == 1).flatten()
+        zc[i][k] = np.random.randint(1,3,len(k))
+        N.append(Ng(x[i]))
+    return x,zc,np.array(N)
+
+
+def crit_gen(z):
+    """Docstring
+    """
+    zc = np.copy(z)
+    zc[z==1] = np.random.randint(1,3,size = len(np.argwhere(z==1)))
+    return zc
+
+def lin_bin(x,y):
+    b = np.linspace(0.04,1.,25)
+    xb = []
+    yb = []
+    for i in b:
+        t1 = x<i
+        t2 = x>= i - 0.04
+        t = t1 * t2
+        xb.append(i-0.02)
+        yb.append(np.mean(y[t]))
+    return np.array(xb),np.array(yb)
