@@ -146,7 +146,8 @@ class Oslo:
     def def_run(self,N):
         self.d_offset = []
         for i in range(N):
-            print i
+            if i % 5 == 0:
+                print i
             z_stack,zc_stack,offset = oi.slope_gen(self.__L)
             self.d_offset.append(offset)
             for j in range(self.__L+1):
@@ -158,6 +159,25 @@ class Oslo:
                 self.micro_run()
         self.d_offset = np.block(self.d_offset)
         self.d_offset_norm = 2. - 2.*self.d_offset/(self.__L * (self.__L + 1.))
+
+    def def_save(self,foldername=None):
+        files = {'L':self.__L,'t':self.__t,'N':float(self.__t)/(self.__L + 1)}
+        if foldername == None:
+            folder = str('defdata_dump_L' + str(self.__L) + '_t' + str(self.__t) +
+                                        '_' + binascii.b2a_hex(os.urandom(6)))
+        else:
+            folder = foldername
+        os.makedirs(folder)
+        with open(folder + '/meta.pickle', 'wb') as f:
+            pickle.dump(files, f)
+        np.save(folder + '/d_offset',self.d_offset)
+        np.save(folder + '/d_offset_norm',self.d_offset_norm)
+        np.save(folder + '/s',self.s)
+        np.save(folder + '/d',self.d)
+        np.save(folder + '/r',self.r)
+        np.save(folder + '/cor',self.cor)
+
+
 
     def info(self,single = False):
         """Returns key information about current state of the ricepile.
