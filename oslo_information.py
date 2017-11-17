@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import sympy
 
 def pile_excess(data, mode = 'outflux', L=None):
     """ Calculate deviation between net outflux/avalanches and expected
@@ -295,13 +296,66 @@ def crit_gen(z):
     return zc
 
 def lin_bin(x,y):
-    b = np.linspace(0.04,1.,25)
+    b = np.linspace(0.02,1.,50)
     xb = []
     yb = []
     for i in b:
         t1 = x<i
-        t2 = x>= i - 0.04
+        t2 = x>= i - 0.02
         t = t1 * t2
-        xb.append(i-0.02)
+        xb.append(i-0.01)
         yb.append(np.mean(y[t]))
     return np.array(xb),np.array(yb)
+
+def open_data(foldername):
+    x = np.load(foldername + '/d_offset_norm.npy')
+    y = np.load(foldername + '/r.npy')
+    z = np.load(foldername + '/cor.npy')
+    return x,y,z
+
+def slope_block_init(L):
+    #This method preferentially result in long blocks dominating
+    #generated slope. Weight according to length.
+    primes = list(sympy.primerange(0,L+1))
+    blocks = [np.array([1])]
+    for i in primes:
+        b = np.ones(i,dtype = 'int8')
+        b[-1] = 2
+        b[np.random.randint(0,i-1)] = 0
+        blocks.append(b)
+    l = [1] + primes
+    w = 1. / np.array(l)
+    slope = []
+    while L != 0:
+        w /= np.sum(w[:sympy.primepi(L)+1])
+        r = np.random.choice(sympy.primepi(L)+1,1,p = w[:sympy.primepi(L)+1])
+        slope = [blocks[int(r)]] + slope
+        L -= l[int(r)]
+    slope = np.block(slope)
+    slope_c = np.copy(slope)
+    m = np.argwhere(slope_c != 2).flatten()
+    slope_c[m] = np.random.randint(1,3,len(m))
+    return slope, slope_c
+
+def slopes(z_i,zc_i):
+    z = [z_i]
+    zc = [zc_i]
+    N = [Ng(z_i)]
+    l = len(np.argwhere(z_i != 2).flatten())
+    while l != 0:
+        z.append(np.copy(z[-1]))
+        zc.append(np.copy(zc[-1]))
+        i = np.argwhere(z[-1] != 2).flatten()
+        r = np.random.randint(0,len(i))
+        if z[-1][i[r]] == 1:
+            z[-1][i[r]] = 2
+            zc[-1][i[r]] = 2
+        else:
+            z[-1][i[r]] = 1
+            zc[-1][i[r]] = np.random.randint(1,3)
+        l = len(i) - 1
+        N.append(Ng(z[-1]))
+    z = np.vstack(z)
+    zc = np.vstack(zc)
+    N = np.array(N)
+    return z,zc,N

@@ -14,6 +14,7 @@ class Oslo:
     """ Docstring """
 
     def __init__(self, L,mode = 'n'):
+        self.mode = mode
         if type(L) != int:
             raise ValueError("Grid size, L, must be integer type.")
         self.__L = L
@@ -87,6 +88,7 @@ class Oslo:
         else:
             return 2
 
+    #@profile
     def micro_run(self):
         """Docstring"""
         tm = 0
@@ -97,6 +99,9 @@ class Oslo:
         # print('break')
         while len(self.point[tm%2]) != 0:
             # print(self.point[tm%2],self.point,tm)
+            if self.mode == 'def':
+                if cor:
+                    break
             for i in self.point[tm%2]:
                 if i == self.__L - 1:
                     cor = True
@@ -126,7 +131,7 @@ class Oslo:
         self.r.append(r)
         self.s.append(sm)
         self.d.append(dm)
-
+    #@profile
     def run(self,N):
         """Docstring"""
         index = np.arange(self.__L)
@@ -143,14 +148,18 @@ class Oslo:
             self.micro_run()
             # print(self.__z)
 
+    #@profile
     def def_run(self,N):
+        self.mode = 'def'
         self.d_offset = []
         for i in range(N):
             if i % 5 == 0:
                 print i
-            z_stack,zc_stack,offset = oi.slope_gen(self.__L)
+            #z_stack,zc_stack,offset = oi.slope_gen(self.__L)
+            z_i,zc_i = oi.slope_block_init(self.__L)
+            z_stack,zc_stack,offset = oi.slopes(z_i,zc_i)
             self.d_offset.append(offset)
-            for j in range(self.__L+1):
+            for j in range(len(z_stack)):
                 self.__z = z_stack[j]
                 self.__z_c = zc_stack[j]
                 self.point = [[0],[]]
@@ -207,3 +216,81 @@ class Oslo:
             return data
         else:
             return data[single]
+
+def slope_block_init(L):
+    #This method preferentially result in long blocks dominating
+    #generated slope. Weight according to length.
+    primes = list(sympy.primerange(0,L+1))
+    blocks = [np.array([1])]
+    for i in primes:
+        b = np.ones(i,dtype = 'int8')
+        b[-1] = 2
+        b[:-1] = np.random.randint(1,3,i-1)
+        b[np.random.randint(0,i-1)] = 0
+        blocks.append(b)
+    l = [1] + primes
+    w = 1. / np.array(l)
+    slope = []
+    while L != 0:
+        w /= np.sum(w[:sympy.primepi(L)+1])
+        r = np.random.choice(sympy.primepi(L)+1,1,p = w[:sympy.primepi(L)+1])
+        slope = [blocks[int(r)]] + slope
+        L -= l[int(r)]
+    slope = sample(slope,len(slope))
+    slope = np.block(slope)
+    slope_c = np.copy(slope)
+    m = np.argwhere(slope_c != 2).flatten()
+    slope_c[m] = np.random.randint(1,3,len(m))
+    return slope, slope_c
+
+def slopes(z_i,zc_i):
+    z = [z_i]
+    zc = [zc_i]
+    N = [Ng(z_i)]
+    l = len(np.argwhere(z_i != 2).flatten())
+    while l != 0:
+        z.append(np.copy(z[-1]))
+        zc.append(np.copy(zc[-1]))
+        i = np.argwhere(z[-1] == 1).flatten()
+        j = np.argwhere(z[-1] == 0).flatten()
+        if len(j) != 0: #0s exist
+            if len(i) != 0: #1s exist
+                if np.random.rand() > (1./len(z_i)):
+                    #print 1
+                    r = np.random.randint(0,len(i))
+                    z[-1][i[r]] = 2
+                    zc[-1][i[r]] = 2
+                else:
+                    #print 2
+                    r = np.random.randint(0,len(j))
+                    z[-1][j[r]] = 1
+                    zc[-1][j[r]] = np.random.randint(1,3)
+            else: #Only 0s
+                #print 3
+                r = np.random.randint(0,len(j))
+                z[-1][j[r]] = 1
+                zc[-1][j[r]] = np.random.randint(1,3)
+        else: #Only 1s
+            #print 4
+            r = np.random.randint(0,len(i))
+            z[-1][i[r]] = 2
+            zc[-1][i[r]] = 2
+            #
+            #
+            # r = np.random.randint(0,len(i))
+            # if z[-1][i[r]] == 1:
+            #     z[-1][i[r]] = 2
+            #     zc[-1][i[r]] = 2
+            # else:
+            # #r = np.random.randint(0,len(i))
+            #     z[-1][i[r]] = 1
+            #     zc[-1][i[r]] = np.random.randint(1,3)
+        l = (len(i) + len(j)) - 1
+        N.append(Ng(z[-1]))
+    z = np.vstack(z)
+    zc = np.vstack(zc)
+    N = np.array(N)
+    return z,zc,N
+
+#a = Oslo(64)
+#a.run(5)
