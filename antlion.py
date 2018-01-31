@@ -103,7 +103,10 @@ class Oslo:
         self.micro_run(mode = 'dig')
         while len(self.__z_c[-1]) > 50:
         # for j in range(10):
-            self.remove.append(self.__z_c[-5:][-5:] + self.__z_c[-4][-5:] + self.__z_c[-3][-5:] + self.__z_c[-2][-5:] + self.__z_c[-1][-5:])
+            # print self.__z_c[-5][-5:] + self.__z_c[-4][-5:] + self.__z_c[-3][-5:] + self.__z_c[-2][-5:] + self.__z_c[-1][-5:]
+            # break
+            self.remove.append(np.array(self.__z_c[-5][-5:] + self.__z_c[-4][-5:] + self.__z_c[-3][-5:] + self.__z_c[-2][-5:] + self.__z_c[-1][-5:]))
+            self.remove[-1] = self.remove[-1].reshape((5,5)).T[::-1]
             del self.__z_c[-1][-5:]
             del self.__z_c[-2][-5:]
             del self.__z_c[-3][-5:]
@@ -112,17 +115,23 @@ class Oslo:
             self.__z[-6] += 5
             self.micro_run(mode = 'dig')
             self.datadump.append(copy.deepcopy(self.__z_c))
-        return self.__z_c
+        #return self.__z_c
 
 
-    def plot_pile(self,z_c):
-        grid = np.zeros((3*self.__L +5,self.__L),dtype ='int')
+    def plot_pile(self,z_c, mode = 'dig'):
+        if mode == 'dig':
+            grid =  np.zeros((self.__L,self.__L),dtype ='int')
+        else:
+            grid = np.zeros((3*self.__L +5,self.__L),dtype ='int')
         for i in range(self.__L):
             grid[:,i][:len(z_c[i])] = z_c[i]
         return grid[::-1]
 
-    def animate(self):
-        grid = np.zeros((len(self.datadump),3*self.__L +5,self.__L),dtype ='int')
+    def animate(self, mode = 'dig'):
+        if mode == 'dig':
+            grid = np.zeros((len(self.datadump),self.__L,self.__L),dtype ='int')
+        else:
+            grid = np.zeros((len(self.datadump),3*self.__L +5,self.__L),dtype ='int')
         for i in range(len(self.datadump)):
             grid[i] = self.plot_pile(self.datadump[i])
         return grid

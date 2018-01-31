@@ -226,8 +226,8 @@ def cr_def(deficit,correlate):
     """Input pile.cor or pile.r as correlate.
     """
     correlate = np.array(correlate)
-    deficit = deficit[:-1]
-    correlate = correlate[1:]
+    deficit = deficit[:]
+    correlate = correlate[:] #This deficit calculation only valid for correlated calculations!
     u = np.unique(deficit)
 
     dump = []
@@ -346,6 +346,7 @@ def slopes(z_i,zc_i):
         z.append(np.copy(z[-1]))
         zc.append(np.copy(zc[-1]))
         i = np.argwhere(z[-1] != 2).flatten()
+        zc[-1][i] = np.random.randint(1,3,len(i))
         r = np.random.randint(0,len(i))
         if z[-1][i[r]] == 1:
             z[-1][i[r]] = 2

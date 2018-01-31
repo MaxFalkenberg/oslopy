@@ -9,6 +9,8 @@ import pickle
 import os
 import binascii
 import oslo_information as oi
+import sympy
+from random import sample
 
 class Oslo:
     """ Docstring """
@@ -28,6 +30,8 @@ class Oslo:
         self.point = [[],[]]
         if mode == 'r':
             self.__z += 2
+            self.__z_c *= 0
+            self.__z_c += 2
             Oslo.run(self,1)
             self.__t = 0
             self.s = []
@@ -36,8 +40,25 @@ class Oslo:
             self.r = []
             self.point = [[],[]]
             self.d_offset = Oslo.height(self)
-        else:
+        elif mode == 'n':
             self.d_offset = 0
+        else:
+            self.d_offset = []
+
+    def reset(self):
+        self.__z *= 0
+        self.__z_c *= 0
+        self.__z += 2
+        self.__z_c += 2
+        Oslo.run(self,1,False)
+        self.__t -= 1
+        self.s = self.s[:-1]
+        self.d = self.d[:-1]
+        self.cor = self.cor[:-1]
+        self.r = self.r[:-1]
+        self.point = [[0],[]]
+        if self.mode == 'rc':
+            self.d_offset.append(Oslo.height(self))
 
     def height(self):
         j = 0
@@ -91,6 +112,8 @@ class Oslo:
     #@profile
     def micro_run(self):
         """Docstring"""
+        #if self.__t %100 == 0:
+            #print self.__t
         tm = 0
         sm = 0
         dm = 0
@@ -99,14 +122,7 @@ class Oslo:
         # print('break')
         while len(self.point[tm%2]) != 0:
             # print(self.point[tm%2],self.point,tm)
-            if self.mode == 'def':
-                if cor:
-                    break
             for i in self.point[tm%2]:
-                if i == self.__L - 1:
-                    cor = True
-                if i > r:
-                    r = i
                 if self.__z[i] > self.__z_c[i]:
                     self.__z[i] -= 2
                     self.__z_c[i] = self.newslope()
@@ -125,28 +141,44 @@ class Oslo:
                         self.__z[i+1] += 1
                         self.point[(tm+1)%2].append(i-1)
                         self.__z[i-1] += 1
+                if i > r:
+                    r = i
+                if i == self.__L - 1:
+                    cor = True
+                    if self.mode == 'def':
+                        #print r
+                        r = i
+                        self.point = [[],[]]
+                        break
+                #print r
             self.point[tm%2] = []
             tm += 1
         self.cor.append(cor)
         self.r.append(r)
         self.s.append(sm)
         self.d.append(dm)
+        #print 'split', self.r
     #@profile
-    def run(self,N):
+    def run(self,N,preset = True):
         """Docstring"""
-        index = np.arange(self.__L)
-        self.__z[0] += 1
-        z_t = ((self.__z - self.__z_c) > 0)
-        self.__z[0] -= 1
-        self.point[0] = list(index[z_t])
-        checks = 0
+        if self.mode != 'rc':
+            index = np.arange(self.__L)
+            self.__z[0] += 1
+            z_t = ((self.__z - self.__z_c) > 0)
+            self.__z[0] -= 1
+            self.point[0] = list(index[z_t])
+            checks = 0
         for j in range(N):
             if 0 not in self.point[0]:
                 self.point[0].append(0)
+            if self.mode == 'rc':
+                if preset:
+                    Oslo.reset(self)
+            #print self.__z
             self.__z[0] += 1
             self.__t += 1
             self.micro_run()
-            # print(self.__z)
+            #print(self.__z)
 
     #@profile
     def def_run(self,N):
@@ -163,9 +195,14 @@ class Oslo:
                 self.__z = z_stack[j]
                 self.__z_c = zc_stack[j]
                 self.point = [[0],[]]
+                print self.__z,self.__z_c
+                print ''
                 self.__z[0] += 1
                 self.__t += 1
                 self.micro_run()
+                print self.__z,self.d_offset[-1][j],self.r[-1],self.cor[-1]
+                print ''
+                print ''
         self.d_offset = np.block(self.d_offset)
         self.d_offset_norm = 2. - 2.*self.d_offset/(self.__L * (self.__L + 1.))
 
@@ -217,80 +254,89 @@ class Oslo:
         else:
             return data[single]
 
-def slope_block_init(L):
-    #This method preferentially result in long blocks dominating
-    #generated slope. Weight according to length.
-    primes = list(sympy.primerange(0,L+1))
-    blocks = [np.array([1])]
-    for i in primes:
-        b = np.ones(i,dtype = 'int8')
-        b[-1] = 2
-        b[:-1] = np.random.randint(1,3,i-1)
-        b[np.random.randint(0,i-1)] = 0
-        blocks.append(b)
-    l = [1] + primes
-    w = 1. / np.array(l)
-    slope = []
-    while L != 0:
-        w /= np.sum(w[:sympy.primepi(L)+1])
-        r = np.random.choice(sympy.primepi(L)+1,1,p = w[:sympy.primepi(L)+1])
-        slope = [blocks[int(r)]] + slope
-        L -= l[int(r)]
-    slope = sample(slope,len(slope))
-    slope = np.block(slope)
-    slope_c = np.copy(slope)
-    m = np.argwhere(slope_c != 2).flatten()
-    slope_c[m] = np.random.randint(1,3,len(m))
-    return slope, slope_c
-
-def slopes(z_i,zc_i):
-    z = [z_i]
-    zc = [zc_i]
-    N = [Ng(z_i)]
-    l = len(np.argwhere(z_i != 2).flatten())
-    while l != 0:
-        z.append(np.copy(z[-1]))
-        zc.append(np.copy(zc[-1]))
-        i = np.argwhere(z[-1] == 1).flatten()
-        j = np.argwhere(z[-1] == 0).flatten()
-        if len(j) != 0: #0s exist
-            if len(i) != 0: #1s exist
-                if np.random.rand() > (1./len(z_i)):
-                    #print 1
-                    r = np.random.randint(0,len(i))
-                    z[-1][i[r]] = 2
-                    zc[-1][i[r]] = 2
-                else:
-                    #print 2
-                    r = np.random.randint(0,len(j))
-                    z[-1][j[r]] = 1
-                    zc[-1][j[r]] = np.random.randint(1,3)
-            else: #Only 0s
-                #print 3
-                r = np.random.randint(0,len(j))
-                z[-1][j[r]] = 1
-                zc[-1][j[r]] = np.random.randint(1,3)
-        else: #Only 1s
-            #print 4
-            r = np.random.randint(0,len(i))
-            z[-1][i[r]] = 2
-            zc[-1][i[r]] = 2
-            #
-            #
-            # r = np.random.randint(0,len(i))
-            # if z[-1][i[r]] == 1:
-            #     z[-1][i[r]] = 2
-            #     zc[-1][i[r]] = 2
-            # else:
-            # #r = np.random.randint(0,len(i))
-            #     z[-1][i[r]] = 1
-            #     zc[-1][i[r]] = np.random.randint(1,3)
-        l = (len(i) + len(j)) - 1
-        N.append(Ng(z[-1]))
-    z = np.vstack(z)
-    zc = np.vstack(zc)
-    N = np.array(N)
-    return z,zc,N
+# def slope_block_init(L):
+#     #This method preferentially result in long blocks dominating
+#     #generated slope. Weight according to length.
+#     primes = list(sympy.primerange(0,L+1))
+#     blocks = [np.array([1])]
+#     for i in primes:
+#         b = np.ones(i,dtype = 'int8')
+#         b[-1] = 2
+#         b[:-1] = np.random.randint(1,3,i-1)
+#         b[np.random.randint(0,i-1)] = 0
+#         blocks.append(b)
+#     l = [1] + primes
+#     #w = 1. / np.array(l)
+#     slope = []
+#     while L != 0:
+#         #w /= np.sum(w[:sympy.primepi(L)+1])
+#         #r = np.random.choice(sympy.primepi(L)+1,1,p = w[:sympy.primepi(L)+1])
+#         r = np.random.randint(sympy.primepi(L)+1)
+#         slope = [blocks[int(r)]] + slope
+#         L -= l[int(r)]
+#     slope = sample(slope,len(slope))
+#     slope = np.block(slope)
+#     slope_c = np.copy(slope)
+#     m = np.argwhere(slope_c != 2).flatten()
+#     slope_c[m] = np.random.randint(1,3,len(m))
+#     return slope, slope_c
+#
+# def slopes(z_i,zc_i):
+#     z = [z_i]
+#     zc = [zc_i]
+#     N = [Ng(z_i)]
+#     l = len(np.argwhere(z_i != 2).flatten())
+#     while l != 0:
+#         z.append(np.copy(z[-1]))
+#         zc.append(np.copy(zc[-1]))
+#         i = np.argwhere(z[-1] == 1).flatten()
+#         j = np.argwhere(z[-1] == 0).flatten()
+#         zc[-1][i] = np.random.randint(1,3,len(i))
+#         zc[-1][j] = np.random.randint(1,3,len(j))
+#         if len(j) != 0: #0s exist
+#             if len(i) != 0: #1s exist
+#                 if np.random.rand() > (1./len(z_i)):
+#                     #print 1
+#                     r = np.random.randint(0,len(i))
+#                     z[-1][i[r]] = 2
+#                     zc[-1][i[r]] = 2
+#                 else:
+#                     #print 2
+#                     r = np.random.randint(0,len(j))
+#                     z[-1][j[r]] = 1
+#                     zc[-1][j[r]] = np.random.randint(1,3)
+#             else: #Only 0s
+#                 #print 3
+#                 r = np.random.randint(0,len(j))
+#                 z[-1][j[r]] = 1
+#                 zc[-1][j[r]] = np.random.randint(1,3)
+#         else: #Only 1s
+#             #print 4
+#             r = np.random.randint(0,len(i))
+#             z[-1][i[r]] = 2
+#             zc[-1][i[r]] = 2
+#             #
+#             #
+#             # r = np.random.randint(0,len(i))
+#             # if z[-1][i[r]] == 1:
+#             #     z[-1][i[r]] = 2
+#             #     zc[-1][i[r]] = 2
+#             # else:
+#             # #r = np.random.randint(0,len(i))
+#             #     z[-1][i[r]] = 1
+#             #     zc[-1][i[r]] = np.random.randint(1,3)
+#         l = (len(i) + len(j)) - 1
+#         N.append(Ng(z[-1]))
+#     z = np.vstack(z)
+#     zc = np.vstack(zc)
+#     N = np.array(N)
+#     return z,zc,N
+#
+# def Ng(slopes):
+#     """Docstring
+#     """
+#     i = np.arange(1,len(slopes) + 1)
+#     return np.sum(slopes * i)
 
 #a = Oslo(64)
 #a.run(5)
