@@ -3,6 +3,21 @@ import matplotlib.pyplot as plt
 import copy
 from random import shuffle
 
+def density(L = 150.):
+    x = np.linspace(0.1,L,1000).astype('float')
+    d2 = (x**2)/(2*(L - x))
+    d3 = (x ** 3)/(12*(((L/2)**2) - ((x/2)**2)))
+    plt.plot(x,d2,label = '2D Density')
+    plt.plot(x,d3,label = '3D Density')
+    plt.plot([50,50],[0.1,100],label = 'Width = 50',ls = '--')
+    plt.xlabel('Pit Width [Grain Units]', fontsize = 18)
+    plt.ylabel('Grain Density', fontsize = 18)
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.legend(loc = 'best',fontsize=18)
+    plt.savefig('graindensity.png')
+    plt.show()
+
 def lining_count(p = 0.5):
     N = 25
     x = [2,4,6,8,10,15,20,30,50,100,200,300,500,1000]
@@ -10,7 +25,7 @@ def lining_count(p = 0.5):
     yraw = [[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
     for i in range(N):
         print i
-        a = Oslo(301,p_large=p,mode='dig',w=5)
+        a = Oslo(351,p_large=p,mode='dig',w=5)
         for j in range(len(dx)):
             a.run(dx[j])
             a.count()
@@ -23,7 +38,7 @@ def lining_count(p = 0.5):
 
 class Oslo:
 
-    def __init__(self,L,p_large=0.5,mode='build',centre=None,w=1):
+    def __init__(self,L,p_large=0.5,mode='build',centre=None,w=1,grain_throw = 'bucket'):
         self.L = int(L)
         self.z = np.zeros((2,L),dtype='int8')
         self.p = p_large
@@ -31,8 +46,13 @@ class Oslo:
         self.ldrop = []
         self.removed = []
         self.w = w
+        self.width_dump = []
+        self.depth_dump = []
+        self.topview = []
+        self.lr = []
         self.t = 0
         self.removal_window = np.zeros((self.w,self.w),dtype = 'float')
+        self.grain_throw = grain_throw
         if mode == 'dig':
             # self.grains = [[0]*L for i in range(L)]
             self.grains = np.random.rand(L,L) + 1 + p_large
@@ -101,6 +121,10 @@ class Oslo:
 
         w = rlim - llim
         self.width = w
+        self.width_dump.append(w)
+        self.lr.append([llim,rlim])
+        self.depth_dump.append(len_t[self.centre])
+        self.topview.append([j[-1] for j in self.grains])
         self.lining = lining
         # print w, llim, rlim, lining
 
@@ -131,6 +155,7 @@ class Oslo:
                     print('Digging ended because lower limit has been reached.')
                     print('Digging ended after ' + str(self.t) + ' iterations.')
                     break
+                self.count()
                 self.remove()
                 self.micro_run()
 
@@ -146,7 +171,8 @@ class Oslo:
                     g = self.grains[j].pop()
                     self.removal_window[i][j-r[0]] += (g - 1)
                     z = len(self.grains[j])
-                    # p = self.redistribute(g,i,j,z)
+                    if self.grain_throw != 'bucket':
+                        p = self.redistribute(g,i,j,z)
             self.z[:,r[0]][0] -= self.w
             self.z[:,r[-1]][1] -= self.w
             if r[0] != 0:
@@ -240,8 +266,9 @@ class Oslo:
                 cont = 0
 
     def redistribute(self,gsize,layer,x0,z0):
-        v0 = [90.,80.,70.,60.,50.]
-        dv,dt = (np.random.rand(2)*20)-10
+        v0 = [70.,70.,70.,70.,70.]
+        dt = (np.random.rand()*20)-10
+        dv = (np.random.rand()*60)-30
         x,z = self.traj(gsize, v0[layer] + dv, 50. + dt)
         if np.random.rand() > 0.5:
             x = -x
@@ -278,8 +305,12 @@ class Oslo:
             vt = 150.
         else:
             vt = 450.
-        x = ((v0 * vt * np.cos(theta))/g)*(1 - np.exp(-((g * t)/vt)))
-        z = (vt/g)*(v0 * np.sin(theta) + vt)*(1 - np.exp(-((g * t)/vt))) - (vt * t)
+        if self.grain_throw == 'drag':
+            x = ((v0 * vt * np.cos(theta))/g)*(1 - np.exp(-((g * t)/vt)))
+            z = (vt/g)*(v0 * np.sin(theta) + vt)*(1 - np.exp(-((g * t)/vt))) - (vt * t)
+        else:
+            x = v0 * np.cos(theta) * t
+            z = (v0 * np.sin(theta) * t) - ((g/2)*(t**2))
         x *= 10
         z *= 35
         return x,z
